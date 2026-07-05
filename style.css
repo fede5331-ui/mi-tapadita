@@ -31,16 +31,19 @@ body {
 }
 
 .logo-mi {
-  color: #29abe2;
+  font-size: 20px;
   font-style: italic;
-  font-size: 0.6em;
-  vertical-align: super;
-  display: inline-block;
-  transform: scaleX(-1);
+  font-weight: bold;
+  color: #29abe2;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
 }
 
 .logo-tapadita {
-  color: #1a1a1a;
+  font-size: 24px;
+  font-weight: 900;
+  color: #1a5fa8;
+  letter-spacing: -0.5px;
 }
 
 .login-subtitulo {
@@ -141,10 +144,10 @@ body {
 }
 
 .header-logo {
-  font-size: 22px;
-  font-weight: bold;
+  display: flex;
+  align-items: center;
   cursor: pointer;
-  user-select: none;
+  gap: 2px;
 }
 
 .header-iconos {
