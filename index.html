@@ -12,33 +12,26 @@
   <div class="login-container">
 
     <div class="login-logo">
-      <svg viewBox="0 0 180 36" height="36" xmlns="http://www.w3.org/2000/svg">
-  <!-- Mi -->
-  <text x="2" y="14" font-size="13" font-style="italic" font-weight="bold" fill="#1a7abf" font-family="Arial">Mi</text>
-  <!-- Tapadita -->
-  <text x="22" y="28" font-size="22" font-weight="900" fill="#1a5fa8" font-family="Arial">Tapadita</text>
-  <!-- Registered -->
-  <text x="163" y="12" font-size="10" fill="#1a5fa8" font-family="Arial">®</text>
-</svg>
-    </div>
+  <span class="logo-mi">Mi</span><span class="logo-tapadita">Tapadita®</span>
+</div>
 
-    <p class="login-subtitulo">Cartón digital de rifa</p>
+    <p class="login-subtitulo">Cartón Digital de Rifa</p>
 
     <div class="login-card">
       <div class="campo-grupo">
-        <label>Número de celular</label>
-        <input type="tel" id="celular" placeholder="Ej: 0" maxlength="20">
+        <label>Número de Celular</label>
+        <input type="tel" id="celular" placeholder="Ingrese número de celular" maxlength="20">
       </div>
 
       <div class="campo-grupo">
         <label>Contraseña</label>
-        <input type="password" id="password" placeholder="Solo letras y números" maxlength="20">
+        <input type="password" id="password" placeholder="Ingrese contraseña" maxlength="20">
       </div>
 
       <p class="error-msg" id="error-msg"></p>
 
       <button class="btn-primary" onclick="ingresar()">Ingresar</button>
-      <button class="btn-secondary" onclick="registrar()">Crear cuenta</button>
+      <button class="btn-secondary" onclick="registrar()">Crear Cuenta</button>
     </div>
 
   </div>
