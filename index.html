@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mi Tapadita</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="login-body">
+
+  <div class="login-container">
+
+    <div class="login-logo">
+      <svg viewBox="0 0 180 36" height="36" xmlns="http://www.w3.org/2000/svg">
+  <!-- Mi -->
+  <text x="2" y="14" font-size="13" font-style="italic" font-weight="bold" fill="#1a7abf" font-family="Arial">Mi</text>
+  <!-- Tapadita -->
+  <text x="22" y="28" font-size="22" font-weight="900" fill="#1a5fa8" font-family="Arial">Tapadita</text>
+  <!-- Registered -->
+  <text x="163" y="12" font-size="10" fill="#1a5fa8" font-family="Arial">®</text>
+</svg>
+    </div>
+
+    <p class="login-subtitulo">Cartón digital de rifa</p>
+
+    <div class="login-card">
+      <div class="campo-grupo">
+        <label>Número de celular</label>
+        <input type="tel" id="celular" placeholder="Ej: 3814123456" maxlength="20">
+      </div>
+
+      <div class="campo-grupo">
+        <label>Contraseña</label>
+        <input type="password" id="password" placeholder="Solo letras y números" maxlength="20">
+      </div>
+
+      <p class="error-msg" id="error-msg"></p>
+
+      <button class="btn-primary" onclick="ingresar()">Ingresar</button>
+      <button class="btn-secondary" onclick="registrar()">Crear cuenta</button>
+    </div>
+
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase.js"></script>
+  <script>
+    // Si ya hay sesión guardada, ir directo al cartón
+    if (localStorage.getItem('tapadita_celular')) {
+      window.location.href = 'app.html';
+    }
+
+    async function ingresar() {
+      const celular = document.getElementById('celular').value.trim();
+      const password = document.getElementById('password').value.trim();
+      const errorMsg = document.getElementById('error-msg');
+
+      if (!celular || !password) {
+        errorMsg.textContent = 'Completá todos los campos.';
+        return;
+      }
+
+      if (!/^[a-zA-Z0-9]+$/.test(password)) {
+        errorMsg.textContent = 'La contraseña solo puede tener letras y números.';
+        return;
+      }
+
+      const { data, error } = await db
+        .from('usuarios')
+        .select('*')
+        .eq('celular', celular)
+        .eq('password', password)
+        .single();
+
+      if (error || !data) {
+        errorMsg.textContent = 'Celular o contraseña incorrectos.';
+        return;
+      }
+
+      localStorage.setItem('tapadita_celular', celular);
+      window.location.href = 'app.html';
+    }
+
+    async function registrar() {
+      const celular = document.getElementById('celular').value.trim();
+      const password = document.getElementById('password').value.trim();
+      const errorMsg = document.getElementById('error-msg');
+
+      if (!celular || !password) {
+        errorMsg.textContent = 'Completá todos los campos.';
+        return;
+      }
+
+      if (!/^[a-zA-Z0-9]+$/.test(password)) {
+        errorMsg.textContent = 'La contraseña solo puede tener letras y números.';
+        return;
+      }
+
+      // Verificar si ya existe
+      const { data: existente } = await db
+        .from('usuarios')
+        .select('id')
+        .eq('celular', celular)
+        .single();
+
+      if (existente) {
+        errorMsg.textContent = 'Ese número ya tiene una cuenta. Ingresá con tu contraseña.';
+        return;
+      }
+
+      const { error } = await db
+        .from('usuarios')
+        .insert({ celular, password });
+
+      if (error) {
+        errorMsg.textContent = 'Error al crear la cuenta. Intentá de nuevo.';
+        return;
+      }
+
+      localStorage.setItem('tapadita_celular', celular);
+      window.location.href = 'app.html';
+    }
+
+    // Registrar service worker
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js');
+    }
+  </script>
+
+</body>
+</html>
