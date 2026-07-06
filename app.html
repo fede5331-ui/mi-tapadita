@@ -12,7 +12,7 @@
   <!-- HEADER -->
   <header class="app-header">
     <div class="header-logo" onclick="abrirMenu()">
-  <span class="logo-mi">Mi</span><span class="logo-tapadita">Tapadita<sup>®</sup></span>
+  <span class="logo-mi-header">Mi</span><span class="logo-tapadita">Tapadita 🍀</span>
     </div>
     <div class="header-iconos">
       <button class="icono-btn" onclick="toggleEditar()">
@@ -42,9 +42,9 @@
   <div class="menu-overlay" id="menu-overlay" onclick="cerrarMenu(event)">
     <div class="menu-sheet">
       <p class="menu-titulo">Mi Tapadita</p>
-      <button class="menu-btn menu-btn-sortear" onclick="iniciarSorteo()">🎲 Sortear</button>
-      <button class="menu-btn menu-btn-nuevo" onclick="abrirNuevo()">📋 Nuevo cartón</button>
-      <button class="menu-btn menu-btn-historial" onclick="abrirHistorial()">📁 Historial</button>
+      <button class="menu-btn menu-btn-sortear" onclick="iniciarSorteo()">Sortear</button>
+      <button class="menu-btn menu-btn-nuevo" onclick="abrirNuevo()">Nuevo cartón</button>
+      <button class="menu-btn menu-btn-historial" onclick="abrirHistorial()">Historial</button>
       <button class="menu-btn menu-btn-cerrar" onclick="cerrarSesion()">Cerrar sesión</button>
       <button class="menu-btn menu-btn-cerrar" onclick="cerrarMenu()">Cancelar</button>
     </div>
@@ -60,10 +60,20 @@
     </div>
   </div>
 
+<!-- CONFIRMAR TAPADITA -->
+<div class="confirmar-overlay" id="confirmar-overlay">
+  <div class="confirmar-card">
+    <p class="confirmar-titulo">🍀 ¿Listo para revelar?</p>
+    <p class="confirmar-texto">Se iniciará la grabación de pantalla y podrás raspar para descubrir el ganador.</p>
+    <button class="confirmar-btn-aceptar" onclick="confirmarTapadita()">Iniciar y grabar</button>
+    <button class="confirmar-btn-cancelar" onclick="cerrarConfirmar()">Cancelar</button>
+  </div>
+</div>
+
   <!-- HISTORIAL -->
   <div class="historial-overlay" id="historial-overlay" onclick="cerrarHistorial(event)">
     <div class="historial-sheet">
-      <p class="historial-titulo">📁 Historial de cartones</p>
+      <p class="historial-titulo">Historial de cartones</p>
       <div id="historial-lista"></div>
       <button class="historial-cerrar" onclick="cerrarHistorial()">Cerrar</button>
     </div>
@@ -73,11 +83,23 @@
   <div class="nuevo-overlay" id="nuevo-overlay" onclick="cerrarNuevo(event)">
     <div class="nuevo-card">
       <p class="nuevo-titulo">¿Cuántos números?</p>
-      <div class="nuevo-opciones">
-        <button class="nuevo-opcion" onclick="crearCarton(25)">25 números</button>
-        <button class="nuevo-opcion" onclick="crearCarton(50)">50 números</button>
-        <button class="nuevo-opcion" onclick="crearCarton(100)">100 números</button>
-      </div>
+      <div id="paso-tamaño">
+  
+  <div class="nuevo-opciones">
+    <button class="nuevo-opcion" onclick="elegirTamaño(25)">25 números</button>
+    <button class="nuevo-opcion" onclick="elegirTamaño(50)">50 números</button>
+    <button class="nuevo-opcion" onclick="elegirTamaño(100)">100 números</button>
+  </div>
+</div>
+
+<div id="paso-premios" style="display:none">
+  <p class="nuevo-titulo">¿Cuántos premios?</p>    
+  <div class="nuevo-opciones">
+    <button class="nuevo-opcion" onclick="crearCarton(1)">1 Premio</button>
+    <button class="nuevo-opcion" onclick="crearCarton(2)">2 Premios</button>
+    <button class="nuevo-opcion" onclick="crearCarton(3)">3 Premios</button>
+  </div>
+</div>
       <button class="nuevo-cerrar" onclick="cerrarNuevo()">Cancelar</button>
     </div>
   </div>

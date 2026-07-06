@@ -2,8 +2,8 @@ let celular = localStorage.getItem('tapadita_celular');
 let cartonActual = null;
 let modoEditar = false;
 let paginaActual = 0;
+let tapaditaRevelada = false;
 
-// Si no hay sesión, volver al login
 if (!celular) window.location.href = 'index.html';
 
 // ===== INICIO =====
@@ -23,27 +23,41 @@ async function init() {
   }
 }
 
+let tamañoElegido = 25;
+
+function elegirTamaño(tamaño) {
+  tamañoElegido = tamaño;
+  document.getElementById('paso-tamaño').style.display = 'none';
+  document.getElementById('paso-premios').style.display = 'block';
+}
+
 // ===== CREAR CARTON =====
-async function crearCarton(tamaño) {
+async function crearCarton(premios) {
+  const tamaño = tamañoElegido;
   cerrarNuevo();
 
-  // Marcar cartón anterior como historial
   if (cartonActual) {
     await db.from('cartones').update({ estado: 'historial' }).eq('id', cartonActual.id);
   }
 
   const { data, error } = await db
     .from('cartones')
-    .insert({ celular, tamaño, premio: '', costo: '', estado: 'activo' })
+    .insert({ celular, tamaño, premio: '', costo: '', estado: 'activo', premios: premios })
     .select()
     .single();
 
   if (error) { alert('Error al crear el cartón.'); return; }
 
-  // Crear celdas vacías
+  const { data: nombresData } = await db.from('nombres').select('nombre');
+
+  const nombresmezclados = nombresData
+    .map(n => n.nombre)
+    .sort(() => Math.random() - 0.5)
+    .slice(0, tamaño);
+
   const celdas = [];
   for (let i = 1; i <= tamaño; i++) {
-    celdas.push({ carton_id: data.id, numero: i, nombre: '' });
+    celdas.push({ carton_id: data.id, numero: i, nombre_predefinido: nombresmezclados[i - 1], nombre: '' });
   }
   await db.from('celdas').insert(celdas);
 
@@ -51,6 +65,30 @@ async function crearCarton(tamaño) {
   cartonActual.celdas = celdas;
   paginaActual = 0;
   renderizarCarton();
+}
+
+function generarCamposPremios() {
+  const cantPremios = cartonActual.premios || 1;
+  const premios = cartonActual.premio ? cartonActual.premio.split('|') : [];
+  const etiquetas = ['Premio:', '1er Premio:', '2do Premio:', '3er Premio:'];
+
+  if (cantPremios === 1) {
+    return `
+      <div class="info-fila">
+        <span class="etiqueta">Premio:</span>
+        <input class="info-input" id="input-premio-0" value="${premios[0] || ''}" placeholder="—" ${modoEditar ? '' : 'readonly'}>
+      </div>`;
+  }
+
+  let html = '';
+  for (let i = 0; i < cantPremios; i++) {
+    html += `
+      <div class="info-fila" style="margin-top:${i > 0 ? '6px' : '0'}">
+        <span class="etiqueta">${etiquetas[i + 1]}</span>
+        <input class="info-input" id="input-premio-${i}" value="${premios[i] || ''}" placeholder="—" ${modoEditar ? '' : 'readonly'}>
+      </div>`;
+  }
+  return html;
 }
 
 // ===== RENDERIZAR CARTON =====
@@ -69,43 +107,41 @@ async function renderizarCarton() {
   const tamaño = cartonActual.tamaño;
   const paginas = tamaño / 25;
 
-  // Info del cartón
   const info = document.createElement('div');
   info.className = 'carton-info';
   info.innerHTML = `
     <div style="display:flex; justify-content:space-between; align-items:flex-start;">
       <div style="flex:1">
-        <div class="info-fila">
-          <span class="etiqueta">Premio:</span>
-          <input class="info-input" id="input-premio" value="${cartonActual.premio || ''}" placeholder="—" ${modoEditar ? '' : 'readonly'}>
-        </div>
+        ${generarCamposPremios()}
         <div class="info-fila" style="margin-top:6px">
           <span class="etiqueta">Costo:</span>
           <input class="info-input" id="input-costo" value="${cartonActual.costo || ''}" placeholder="—" ${modoEditar ? '' : 'readonly'}>
         </div>
       </div>
-      <div class="carton-titulo">
-        CARTON CON<br><span>${tamaño}</span>NOMBRES<br>1 PREMIO
+      <div class="tapadita-container">
+        <div class="tapadita-resultado" id="tapadita-resultado">
+          <span id="tapadita-numero">?</span>
+          <span id="tapadita-nombre"></span>
+        </div>
+        <canvas id="tapadita-canvas" width="130" height="80"></canvas>
       </div>
     </div>
   `;
   container.appendChild(info);
 
-  // Paginación si hay más de 25
   if (paginas > 1) {
     const nav = document.createElement('div');
     nav.style.cssText = 'display:flex; gap:8px; margin-bottom:10px; justify-content:center;';
     for (let p = 0; p < paginas; p++) {
       const btn = document.createElement('button');
       btn.textContent = `${p * 25 + 1}–${(p + 1) * 25}`;
-      btn.style.cssText = `padding:6px 14px; border-radius:20px; border:2px solid #1a5fa8; background:${p === paginaActual ? '#1a5fa8' : 'white'}; color:${p === paginaActual ? 'white' : '#1a5fa8'}; cursor:pointer; font-size:13px;`;
+      btn.style.cssText = `padding:6px 14px; border-radius:20px; border:2px solid #4caf50; background:${p === paginaActual ? '#4caf50' : 'white'}; color:${p === paginaActual ? 'white' : '#4caf50'}; cursor:pointer; font-size:13px;`;
       btn.onclick = () => { paginaActual = p; renderizarCarton(); };
       nav.appendChild(btn);
     }
     container.appendChild(nav);
   }
 
-  // Grilla
   const grilla = document.createElement('div');
   grilla.className = 'grilla';
 
@@ -121,29 +157,45 @@ async function renderizarCarton() {
     numero.className = 'celda-numero';
     numero.textContent = celda.numero;
 
+    const nombrePredefinido = document.createElement('span');
+    nombrePredefinido.className = 'celda-nombre-predefinido';
+    nombrePredefinido.textContent = celda.nombre_predefinido || '';
+
     const input = document.createElement('textarea');
-    input.className = 'celda-nombre' + (modoEditar ? ' editable' : '');
+    const yaEscrito = celda.nombre && celda.nombre.trim() !== '';
+    input.className = 'celda-comprador' + (modoEditar && !yaEscrito ? ' editable' : '');
     input.value = celda.nombre || '';
-    input.placeholder = modoEditar ? 'Nombre' : '';
-    input.rows = 2;
-    input.readOnly = !modoEditar;
+    input.placeholder = modoEditar && !yaEscrito ? 'Apodo' : '';
+    input.rows = 1;
+    input.readOnly = !modoEditar || yaEscrito;
 
     input.addEventListener('change', () => guardarCelda(celda.id, input.value));
 
     div.appendChild(numero);
     div.appendChild(input);
+    div.appendChild(nombrePredefinido);
     grilla.appendChild(div);
   });
 
   container.appendChild(grilla);
 
-  // Eventos para premio y costo
   if (modoEditar) {
-    document.getElementById('input-premio').addEventListener('change', guardarInfo);
-    document.getElementById('input-costo').addEventListener('change', guardarInfo);
-    document.getElementById('input-premio').classList.add('editable');
-    document.getElementById('input-costo').classList.add('editable');
+    const cantPremios = cartonActual.premios || 1;
+    for (let i = 0; i < cantPremios; i++) {
+      const input = document.getElementById(`input-premio-${i}`);
+      if (input) {
+        input.addEventListener('change', guardarInfo);
+        input.classList.add('editable');
+      }
+    }
+    const inputCosto = document.getElementById('input-costo');
+    if (inputCosto) {
+      inputCosto.addEventListener('change', guardarInfo);
+      inputCosto.classList.add('editable');
+    }
   }
+
+  setTimeout(iniciarTapadita, 100);
 }
 
 // ===== GUARDAR CELDA =====
@@ -153,7 +205,13 @@ async function guardarCelda(id, nombre) {
 
 // ===== GUARDAR INFO =====
 async function guardarInfo() {
-  const premio = document.getElementById('input-premio').value;
+  const cantPremios = cartonActual.premios || 1;
+  const premiosArr = [];
+  for (let i = 0; i < cantPremios; i++) {
+    const input = document.getElementById(`input-premio-${i}`);
+    if (input) premiosArr.push(input.value);
+  }
+  const premio = premiosArr.join('|');
   const costo = document.getElementById('input-costo').value;
   await db.from('cartones').update({ premio, costo }).eq('id', cartonActual.id);
   cartonActual.premio = premio;
@@ -186,6 +244,8 @@ function abrirNuevo() {
 function cerrarNuevo(e) {
   if (!e || e.target === document.getElementById('nuevo-overlay')) {
     document.getElementById('nuevo-overlay').classList.remove('visible');
+    document.getElementById('paso-tamaño').style.display = 'block';
+    document.getElementById('paso-premios').style.display = 'none';
   }
 }
 
@@ -227,9 +287,15 @@ function cerrarHistorial(e) {
 async function iniciarSorteo() {
   cerrarMenu();
 
-  const ocupadas = cartonActual.celdas.filter(c => c.nombre && c.nombre.trim() !== '');
+  const { data: celdas } = await db
+    .from('celdas')
+    .select('*')
+    .eq('carton_id', cartonActual.id);
+
+  const ocupadas = celdas.filter(c => c.nombre && c.nombre.trim() !== '');
+
   if (ocupadas.length === 0) {
-    alert('No hay nombres cargados para sortear.');
+    alert('No hay apodos cargados para sortear.');
     return;
   }
 
@@ -237,7 +303,6 @@ async function iniciarSorteo() {
   document.getElementById('sorteo-cerrar').style.display = 'none';
   document.getElementById('sorteo-nombre').textContent = '';
 
-  let i = 0;
   let velocidad = 60;
   let ticks = 0;
   const totalTicks = 40;
@@ -254,7 +319,7 @@ async function iniciarSorteo() {
     if (ticks >= totalTicks) {
       clearInterval(intervalo);
       document.getElementById('sorteo-numero').textContent = ganador.numero;
-      document.getElementById('sorteo-nombre').textContent = ganador.nombre;
+      document.getElementById('sorteo-nombre').textContent = ganador.nombre + ' - ' + ganador.nombre_predefinido;
       document.getElementById('sorteo-cerrar').style.display = 'inline-block';
     }
   }, velocidad);
@@ -267,7 +332,6 @@ function cerrarSorteo() {
 // ===== CAPTURA =====
 async function capturar() {
   const elemento = document.getElementById('carton-container');
-  
   try {
     const canvas = await html2canvas(elemento, { backgroundColor: '#f0ede6', scale: 2 });
     canvas.toBlob(async blob => {
@@ -291,6 +355,182 @@ async function capturar() {
 function cerrarSesion() {
   localStorage.removeItem('tapadita_celular');
   window.location.href = 'index.html';
+}
+
+// ===== TAPADITA =====
+function iniciarTapadita() {
+  const canvas = document.getElementById('tapadita-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width;
+  const h = canvas.height;
+
+  // Si ya fue revelada, no tapar de nuevo
+  if (tapaditaRevelada) {
+    canvas.style.pointerEvents = 'none';
+    return;
+  }
+
+  const ocupadas = cartonActual.celdas ? cartonActual.celdas.filter(c => c.nombre && c.nombre.trim() !== '') : [];
+  const todas = cartonActual.celdas || [];
+  const pool = ocupadas.length > 0 ? ocupadas : todas;
+  const ganador = pool[Math.floor(Math.random() * pool.length)];
+
+  document.getElementById('tapadita-numero').textContent = ganador.numero;
+  document.getElementById('tapadita-nombre').textContent = ganador.nombre || ganador.nombre_predefinido;
+
+  // Dibujar sticker plateado
+  const grad = ctx.createLinearGradient(0, 0, w, h);
+  grad.addColorStop(0, '#b0b0b0');
+  grad.addColorStop(0.3, '#e8e8e8');
+  grad.addColorStop(0.5, '#f5f5f5');
+  grad.addColorStop(0.7, '#e8e8e8');
+  grad.addColorStop(1, '#909090');
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.roundRect(0, 0, w, h, 10);
+  ctx.fill();
+
+  ctx.fillStyle = '#666';
+  ctx.font = 'bold 10px Arial';
+  ctx.textAlign = 'center';
+  ctx.fillText('🍀 RASPAR', w / 2, h / 2 - 6);
+  ctx.fillText('PARA REVELAR', w / 2, h / 2 + 10);
+
+  let audioCtx = null;
+
+  function hacerSonido() {
+    try {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const buffer = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.04, audioCtx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < data.length; i++) {
+        data[i] = (Math.random() * 2 - 1) * 0.25;
+      }
+      const source = audioCtx.createBufferSource();
+      source.buffer = buffer;
+      source.connect(audioCtx.destination);
+      source.start();
+    } catch (e) {}
+  }
+
+  ctx.globalCompositeOperation = 'destination-out';
+  let raspando = false;
+
+  function raspar(x, y) {
+    ctx.beginPath();
+    ctx.arc(x, y, 20, 0, Math.PI * 2);
+    ctx.fill();
+    hacerSonido();
+
+    const imageData = ctx.getImageData(0, 0, w, h);
+    let transparentes = 0;
+    for (let i = 3; i < imageData.data.length; i += 4) {
+      if (imageData.data[i] === 0) transparentes++;
+    }
+    const progreso = transparentes / (w * h);
+    if (progreso > 0.6) {
+      ctx.clearRect(0, 0, w, h);
+      canvas.style.pointerEvents = 'none';
+    }
+  }
+
+  // Mostrar popup de confirmacion en vez de raspar directo
+  canvas.addEventListener('click', () => {
+    document.getElementById('confirmar-overlay').classList.add('visible');
+  });
+
+  canvas.addEventListener('touchend', e => {
+    e.preventDefault();
+    document.getElementById('confirmar-overlay').classList.add('visible');
+  }, { passive: false });
+
+  // Guardar referencia al contexto para usar despues
+  canvas._ctx = ctx;
+  canvas._hacerSonido = hacerSonido;
+}
+
+function cerrarConfirmar() {
+  document.getElementById('confirmar-overlay').classList.remove('visible');
+}
+
+async function confirmarTapadita() {
+  cerrarConfirmar();
+
+  let mediaRecorder = null;
+  let chunks = [];
+
+  try {
+    const stream = await navigator.mediaDevices.getDisplayMedia({
+      video: { mediaSource: 'screen' },
+      audio: false
+    });
+
+    mediaRecorder = new MediaRecorder(stream);
+    mediaRecorder.ondataavailable = e => chunks.push(e.data);
+    mediaRecorder.onstop = () => {
+      const blob = new Blob(chunks, { type: 'video/webm' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'tapadita-sorteo.webm';
+      a.click();
+    };
+    mediaRecorder.start();
+  } catch (err) {
+    console.log('Grabación no disponible:', err);
+  }
+
+  const canvas = document.getElementById('tapadita-canvas');
+  const ctx = canvas._ctx;
+  const hacerSonido = canvas._hacerSonido;
+  let raspando = false;
+
+  function raspar(x, y) {
+    ctx.beginPath();
+    ctx.arc(x, y, 20, 0, Math.PI * 2);
+    ctx.fill();
+    hacerSonido();
+
+    const w = canvas.width;
+    const h = canvas.height;
+    const imageData = ctx.getImageData(0, 0, w, h);
+    let transparentes = 0;
+    for (let i = 3; i < imageData.data.length; i += 4) {
+      if (imageData.data[i] === 0) transparentes++;
+    }
+    const progreso = transparentes / (w * h);
+    if (progreso > 0.6) {
+      ctx.clearRect(0, 0, w, h);
+      canvas.style.pointerEvents = 'none';
+      tapaditaRevelada = true;
+      if (mediaRecorder && mediaRecorder.state === 'recording') {
+        setTimeout(() => {
+          mediaRecorder.stop();
+          mediaRecorder.stream.getTracks().forEach(t => t.stop());
+        }, 2000);
+      }
+    }
+  }
+
+  canvas.addEventListener('mousedown', () => { raspando = true; });
+  canvas.addEventListener('mouseup', () => { raspando = false; });
+  canvas.addEventListener('mouseleave', () => { raspando = false; });
+  canvas.addEventListener('mousemove', e => {
+    if (!raspando) return;
+    const rect = canvas.getBoundingClientRect();
+    raspar(e.clientX - rect.left, e.clientY - rect.top);
+  });
+
+  canvas.addEventListener('touchstart', e => { e.preventDefault(); raspando = true; }, { passive: false });
+  canvas.addEventListener('touchend', () => { raspando = false; });
+  canvas.addEventListener('touchmove', e => {
+    e.preventDefault();
+    if (!raspando) return;
+    const rect = canvas.getBoundingClientRect();
+    const touch = e.touches[0];
+    raspar(touch.clientX - rect.left, touch.clientY - rect.top);
+  }, { passive: false });
 }
 
 // ===== ARRANCAR =====
