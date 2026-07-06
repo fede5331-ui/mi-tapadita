@@ -60,6 +60,15 @@
     </div>
   </div>
 
+  <!-- CONFIRMAR REVELADO -->
+  <div class="confirmar-overlay" id="confirmar-overlay">
+    <div class="confirmar-card">
+      <p class="confirmar-titulo">🍀 Revelar Ganadores</p>
+      <p class="confirmar-texto">¿Confirmás que querés raspar y descubrir los ganadores ahora?</p>
+      <button class="confirmar-btn-aceptar" onclick="confirmarRevelado()">Confirmar</button>
+      <button class="confirmar-btn-cancelar" onclick="cerrarConfirmar()">Cancelar</button>
+    </div>
+  </div>
 
   <!-- HISTORIAL -->
   <div class="historial-overlay" id="historial-overlay" onclick="cerrarHistorial(event)">
@@ -75,7 +84,7 @@
     <div class="nuevo-card">
       <p class="nuevo-titulo">¿Cuántos números?</p>
       <div id="paso-tamaño">
-  
+
   <div class="nuevo-opciones">
     <button class="nuevo-opcion" onclick="elegirTamaño(25)">25 números</button>
     <button class="nuevo-opcion" onclick="elegirTamaño(50)">50 números</button>
@@ -83,18 +92,8 @@
   </div>
 </div>
 
-<!-- CONFIRMAR REVELADO -->
-<div class="confirmar-overlay" id="confirmar-overlay">
-  <div class="confirmar-card">
-    <p class="confirmar-titulo">🍀 Revelar Ganadores</p>
-    <p class="confirmar-texto">¿Confirmás que querés raspar y descubrir los ganadores ahora?</p>
-    <button class="confirmar-btn-aceptar" onclick="confirmarRevelado()">Confirmar</button>
-    <button class="confirmar-btn-cancelar" onclick="cerrarConfirmar()">Cancelar</button>
-  </div>
-</div>
-
 <div id="paso-premios" style="display:none">
-  <p class="nuevo-titulo">¿Cuántos premios?</p>    
+  <p class="nuevo-titulo">¿Cuántos Premios?</p>
   <div class="nuevo-opciones">
     <button class="nuevo-opcion" onclick="crearCarton(1)">1 Premio</button>
     <button class="nuevo-opcion" onclick="crearCarton(2)">2 Premios</button>
@@ -109,7 +108,6 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="supabase.js"></script>
   <script src="app.js"></script>
-
 
 </body>
 </html>
