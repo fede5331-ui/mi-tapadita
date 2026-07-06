@@ -472,7 +472,7 @@ async function confirmarTapadita() {
   let streamVideo = null;
   let intervaloCaptura = null;
 
-  // 1. Configuración del Audio interno con desbloqueo para celulares
+  // 1. Configuración de Audio robusta para móviles
   try {
     const audioCtx = hacerSonido._ctx || (hacerSonido._ctx = new (window.AudioContext || window.webkitAudioContext)());
     if (audioCtx.state === 'suspended') {
@@ -480,30 +480,28 @@ async function confirmarTapadita() {
     }
     destinoGrabacion = audioCtx.createMediaStreamDestination();
   } catch (e) {
-    console.log("Error al inicializar o desbloquear el audio de grabación");
+    console.log("Error al inicializar audio");
   }
 
-  // 2. Captura visual de TODO EL CARTÓN (Logo, info, tapaditas y grilla)
+  // 2. Captura de TODO el cuerpo de la PWA (Incluye el Logo de arriba)
   try {
-    // CAMBIO CLAVE: Cambiamos '.tapaditas-container' por '#carton-container' para filmar todo
-    const contenedorTotal = document.getElementById('carton-container');
-    if (!contenedorTotal) return;
+    // CAMBIO CLAVE: Usamos document.body para asegurar que filme el logo superior y toda la pantalla
+    const contenedorTotal = document.body; 
 
     const canvasGrabador = document.createElement('canvas');
-    canvasGrabador.width = contenedorTotal.offsetWidth;
-    canvasGrabador.height = contenedorTotal.offsetHeight;
+    canvasGrabador.width = window.innerWidth;
+    canvasGrabador.height = window.innerHeight;
     const ctxGrabador = canvasGrabador.getContext('2d');
 
-    // Captura consecutiva de toda la pantalla de la app a 25 FPS
     intervaloCaptura = setInterval(async () => {
       if (typeof html2canvas !== 'undefined') {
         const snap = await html2canvas(contenedorTotal, { 
           logging: false, 
           useCORS: true,
           scale: 1, 
-          width: contenedorTotal.offsetWidth,
-          height: contenedorTotal.offsetHeight,
-          scrollY: -window.scrollY // Evita cortes si el usuario tiene la pantalla con scroll
+          width: window.innerWidth,
+          height: window.innerHeight,
+          scrollY: 0
         });
         ctxGrabador.clearRect(0, 0, canvasGrabador.width, canvasGrabador.height);
         ctxGrabador.drawImage(snap, 0, 0);
@@ -512,12 +510,17 @@ async function confirmarTapadita() {
 
     streamVideo = canvasGrabador.captureStream(25);
 
-    // Fusionamos video total de la app + audio del raspado
     const pistasVideo = streamVideo.getVideoTracks();
     const pistasAudio = destinoGrabacion ? destinoGrabacion.stream.getAudioTracks() : [];
     const streamCombinado = new MediaStream([...pistasVideo, ...pistasAudio]);
 
-    mediaRecorder = new MediaRecorder(streamCombinado, { mimeType: 'video/webm;codecs=vp8' });
+    // Modificamos opciones para forzar al celular a procesar el contenedor de audio
+    const opcionesGrabacion = { 
+      mimeType: 'video/webm;codecs=vp8,opus',
+      audioBitsPerSecond: 128000 
+    };
+    
+    mediaRecorder = new MediaRecorder(streamCombinado, opcionesGrabacion);
     mediaRecorder.ondataavailable = e => chunks.push(e.data);
     mediaRecorder.onstop = () => {
       clearInterval(intervaloCaptura);
@@ -534,7 +537,7 @@ async function confirmarTapadita() {
     console.log('Error al iniciar grabadora móvil:', err);
   }
 
-  // Función para inyectar sonido en parlantes y video simultáneamente
+  // Inyección de audio forzada
   function reproducirSonidoConGrabacion() {
     try {
       const audioCtx = hacerSonido._ctx || (hacerSonido._ctx = new (window.AudioContext || window.webkitAudioContext)());
@@ -551,13 +554,13 @@ async function confirmarTapadita() {
     } catch (e) {}
   }
 
-  // Bucle secuencial: Raspa un premio completo y cuando termina, pasa al siguiente si existe
+  // Raspado en bucle secuencial ACELERADO
   function rasparPremioSecuencial(indexActual) {
     if (indexActual >= cantPremiosTap) {
       if (mediaRecorder && mediaRecorder.state === 'recording') {
         setTimeout(() => {
           mediaRecorder.stop();
-        }, 2000);
+        }, 1500); // Acortamos también el tiempo de espera final
       }
       return;
     }
@@ -575,19 +578,20 @@ async function confirmarTapadita() {
     const centroY = canvas.height / 2;
 
     function animarPaso() {
+      // CAMBIO CLAVE: Aumentamos los pasos matemáticos para que gire y se expanda el doble de rápido
       const x = centroX + Math.cos(angulo) * radioEspiral;
       const y = centroY + Math.sin(angulo) * radioEspiral;
 
       if (ctx) {
         ctx.beginPath();
-        ctx.arc(x, y, 16, 0, Math.PI * 2);
+        ctx.arc(x, y, 22, 0, Math.PI * 2); // Círculo de raspado un poco más grande para acelerar el borrado
         ctx.fill();
       }
       
       reproducirSonidoConGrabacion();
 
-      angulo += 0.35;
-      radioEspiral += 0.7;
+      angulo += 0.6; // Antes 0.35 (gira más rápido)
+      radioEspiral += 1.4; // Antes 0.7 (se expande hacia afuera el doble de rápido)
 
       const w = canvas.width;
       const h = canvas.height;
@@ -602,7 +606,7 @@ async function confirmarTapadita() {
         progreso = transparentes / (w * h);
       }
 
-      if (progreso < 0.85 && radioEspiral < Math.max(w, h) * 1.3) {
+      if (progreso < 0.85 && radioEspiral < Math.max(w, h) * 1.5) {
         requestAnimationFrame(animarPaso);
       } else {
         if (ctx) ctx.clearRect(0, 0, w, h);
@@ -611,17 +615,16 @@ async function confirmarTapadita() {
         
         setTimeout(() => {
           rasparPremioSecuencial(indexActual + 1);
-        }, 1000);
+        }, 600); // Reducimos la pausa entre premio y premio de 1000ms a 600ms
       }
     }
 
     requestAnimationFrame(animarPaso);
   }
 
-  // Arranca raspando el primer premio tras una breve pausa inicial para capturar la pantalla fija al inicio
   setTimeout(() => {
     rasparPremioSecuencial(0);
-  }, 1000);
+  }, 800);
 }
 
 
