@@ -438,19 +438,28 @@ function iniciarTapaditaIndex(i) {
 
   ctx.globalCompositeOperation = 'destination-out';
 
-  // Al tocar/clickear una tapadita, se revelan todos los premios en secuencia
+  // Al tocar/clickear una tapadita, se muestra el popup de confirmación
   canvas.addEventListener('click', () => {
-    iniciarRevelado();
+    document.getElementById('confirmar-overlay').classList.add('visible');
   });
 
   canvas.addEventListener('touchend', e => {
     e.preventDefault();
-    iniciarRevelado();
+    document.getElementById('confirmar-overlay').classList.add('visible');
   }, { passive: false });
 
   // Guardar referencias para usar durante el raspado
   canvas._ctx = ctx;
   canvas._hacerSonido = hacerSonido;
+}
+
+function cerrarConfirmar() {
+  document.getElementById('confirmar-overlay').classList.remove('visible');
+}
+
+function confirmarRevelado() {
+  cerrarConfirmar();
+  iniciarRevelado();
 }
 
 // ===== REVELADO (raspado con sonido, sin grabación) =====
