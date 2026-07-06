@@ -124,9 +124,9 @@ async function renderizarCarton() {
 
   // ----- TAPADITAS: entre el costo y la cuadrícula -----
   // Tamaño de cada cuadradito según cuántos premios haya (para que entren en pantallas chicas)
-  let anchoCanvas = 130, altoCanvas = 80;
-  if (cantPremiosTap === 2) { anchoCanvas = 120; altoCanvas = 75; }
-  if (cantPremiosTap >= 3) { anchoCanvas = 96; altoCanvas = 68; }
+  let anchoCanvas = 120, altoCanvas = 40;
+  if (cantPremiosTap === 2) { anchoCanvas = 120; altoCanvas = 40; }
+  if (cantPremiosTap >= 3) { anchoCanvas = 120; altoCanvas = 40; }
 
   const tapaditasWrap = document.createElement('div');
   tapaditasWrap.className = 'tapaditas-container' + (cantPremiosTap > 1 ? ' multi' : '');
@@ -466,14 +466,26 @@ async function confirmarTapadita() {
 
   let mediaRecorder = null;
   let chunks = [];
+  let destinoGrabacion = null; // Guardará el canal para enviar el audio del raspado
 
   try {
-    const stream = await navigator.mediaDevices.getDisplayMedia({
+    // 1. Pedimos la captura de pantalla
+    const videoStream = await navigator.mediaDevices.getDisplayMedia({
       video: { mediaSource: 'screen' },
       audio: false
     });
 
-    mediaRecorder = new MediaRecorder(stream);
+    // 2. Usamos el mismo contexto de audio que tu sonido usa para crear el canal de grabación
+    const audioCtx = hacerSonido._ctx || (hacerSonido._ctx = new (window.AudioContext || window.webkitAudioContext)());
+    destinoGrabacion = audioCtx.createMediaStreamDestination();
+
+    // 3. Combinamos la pantalla y el sonido del raspado en un solo stream
+    const pistasVideo = videoStream.getVideoTracks();
+    const pistasAudio = destinoGrabacion.stream.getAudioTracks();
+    const streamCombinado = new MediaStream([...pistasVideo, ...pistasAudio]);
+
+    // 4. Iniciamos la grabadora con todo unificado
+    mediaRecorder = new MediaRecorder(streamCombinado);
     mediaRecorder.ondataavailable = e => chunks.push(e.data);
     mediaRecorder.onstop = () => {
       const blob = new Blob(chunks, { type: 'video/webm' });
@@ -490,14 +502,39 @@ async function confirmarTapadita() {
 
   const canvas = document.getElementById(`tapadita-canvas-${i}`);
   const ctx = canvas._ctx;
-  const hacerSonido = canvas._hacerSonido;
   let raspando = false;
+
+  // Modificamos cómo se ejecuta el sonido para que además de sonar en tus parlantes, vaya al video
+  function reproducirSonidoConGrabacion() {
+    try {
+      const audioCtx = hacerSonido._ctx || (hacerSonido._ctx = new (window.AudioContext || window.webkitAudioContext)());
+      const buffer = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.04, audioCtx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let j = 0; j < data.length; j++) {
+        data[j] = (Math.random() * 2 - 1) * 0.25;
+      }
+      const source = audioCtx.createBufferSource();
+      source.buffer = buffer;
+      
+      // Conexión normal a tus parlantes/auriculares
+      source.connect(audioCtx.destination);
+      
+      // Conexión extra: si la grabadora está activa, inyectamos el sonido al video
+      if (destinoGrabacion) {
+        source.connect(destinoGrabacion);
+      }
+      
+      source.start();
+    } catch (e) {}
+  }
 
   function raspar(x, y) {
     ctx.beginPath();
     ctx.arc(x, y, 20, 0, Math.PI * 2);
     ctx.fill();
-    hacerSonido();
+    
+    // Ejecutamos el sonido modificado que va a parlantes + grabadora
+    reproducirSonidoConGrabacion();
 
     const w = canvas.width;
     const h = canvas.height;
@@ -539,6 +576,7 @@ async function confirmarTapadita() {
     raspar(touch.clientX - rect.left, touch.clientY - rect.top);
   }, { passive: false });
 }
+
 
 // ===== ARRANCAR =====
 init();
