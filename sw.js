@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mi-tapadita-v2';
+const CACHE_NAME = 'mi-tapadita-v3';
 const ARCHIVOS = [
   '/',
   '/index.html',

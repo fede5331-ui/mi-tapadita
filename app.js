@@ -279,7 +279,7 @@ function cerrarSoporte(e) {
 }
 
 function contactarSoporte() {
-  const numero = '5493800000000'; // TODO: reemplazar por tu número de WhatsApp
+  const numero = '5493804887124'; // TODO: reemplazar por tu número de WhatsApp
   const mensaje = encodeURIComponent('Hola! Tengo una consulta sobre Mi Tapadita 🍀');
   window.open(`https://wa.me/${numero}?text=${mensaje}`, '_blank');
 }
