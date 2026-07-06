@@ -14,16 +14,26 @@ async function init() {
     .select('*')
     .eq('celular', celular)
     .eq('estado', 'activo')
-    .single();
+    .order('created_at', { ascending: true }); // el más viejo primero
 
-  if (data) {
-    cartonActual = data;
+  if (data && data.length > 0) {
+    // Nos quedamos con el cartón activo más antiguo: es el original,
+    // el que se armó primero y tiene los datos reales cargados.
+    cartonActual = data[0];
+
+    // Auto-curación: si por algún motivo quedaron más cartones marcados
+    // como "activo" al mismo tiempo (bug viejo, doble clic, etc.), los
+    // mandamos al historial sin tocar el original ni sus datos.
+    if (data.length > 1) {
+      const idsDuplicados = data.slice(1).map(c => c.id);
+      await db.from('cartones').update({ estado: 'historial' }).in('id', idsDuplicados);
+    }
+
     renderizarCarton();
   } else {
     abrirNuevo();
   }
 }
-
 let tamañoElegido = 25;
 
 function elegirTamaño(tamaño) {
