@@ -466,25 +466,25 @@ async function confirmarTapadita() {
 
   let mediaRecorder = null;
   let chunks = [];
-  let destinoGrabacion = null; // Guardará el canal para enviar el audio del raspado
+  let destinoGrabacion = null; // Canal para inyectar el audio del raspado en el video
 
   try {
-    // 1. Pedimos la captura de pantalla
+    // 1. Solicitamos la captura de pantalla para el video
     const videoStream = await navigator.mediaDevices.getDisplayMedia({
       video: { mediaSource: 'screen' },
       audio: false
     });
 
-    // 2. Usamos el mismo contexto de audio que tu sonido usa para crear el canal de grabación
+    // 2. Preparamos el entorno de audio compartiendo el contexto de tu app
     const audioCtx = hacerSonido._ctx || (hacerSonido._ctx = new (window.AudioContext || window.webkitAudioContext)());
     destinoGrabacion = audioCtx.createMediaStreamDestination();
 
-    // 3. Combinamos la pantalla y el sonido del raspado en un solo stream
+    // 3. Fusionamos la pista visual de la pantalla y la pista de audio interno
     const pistasVideo = videoStream.getVideoTracks();
     const pistasAudio = destinoGrabacion.stream.getAudioTracks();
     const streamCombinado = new MediaStream([...pistasVideo, ...pistasAudio]);
 
-    // 4. Iniciamos la grabadora con todo unificado
+    // 4. Encendemos la grabadora de video final
     mediaRecorder = new MediaRecorder(streamCombinado);
     mediaRecorder.ondataavailable = e => chunks.push(e.data);
     mediaRecorder.onstop = () => {
@@ -497,14 +497,14 @@ async function confirmarTapadita() {
     };
     mediaRecorder.start();
   } catch (err) {
-    console.log('Grabación no disponible:', err);
+    console.log('Grabación no disponible o cancelada:', err);
   }
 
   const canvas = document.getElementById(`tapadita-canvas-${i}`);
+  if (!canvas) return;
   const ctx = canvas._ctx;
-  let raspando = false;
-
-  // Modificamos cómo se ejecuta el sonido para que además de sonar en tus parlantes, vaya al video
+  
+  // Función interna para inyectar el sonido del raspado tanto en altavoces como en la grabación
   function reproducirSonidoConGrabacion() {
     try {
       const audioCtx = hacerSonido._ctx || (hacerSonido._ctx = new (window.AudioContext || window.webkitAudioContext)());
@@ -516,10 +516,10 @@ async function confirmarTapadita() {
       const source = audioCtx.createBufferSource();
       source.buffer = buffer;
       
-      // Conexión normal a tus parlantes/auriculares
+      // Salida hacia tus parlantes físicos
       source.connect(audioCtx.destination);
       
-      // Conexión extra: si la grabadora está activa, inyectamos el sonido al video
+      // Salida hacia el stream del video grabado
       if (destinoGrabacion) {
         source.connect(destinoGrabacion);
       }
@@ -528,54 +528,73 @@ async function confirmarTapadita() {
     } catch (e) {}
   }
 
-  function raspar(x, y) {
-    ctx.beginPath();
-    ctx.arc(x, y, 20, 0, Math.PI * 2);
-    ctx.fill();
-    
-    // Ejecutamos el sonido modificado que va a parlantes + grabadora
-    reproducirSonidoConGrabacion();
+  // Animación controlada por código que raspa sola en espiral desde el centro hacia afuera
+  function iniciarRaspadoAutomatico() {
+    let angulo = 0;
+    let radioEspiral = 2;
+    const centroX = canvas.width / 2;
+    const centroY = canvas.height / 2;
 
-    const w = canvas.width;
-    const h = canvas.height;
-    const imageData = ctx.getImageData(0, 0, w, h);
-    let transparentes = 0;
-    for (let k = 3; k < imageData.data.length; k += 4) {
-      if (imageData.data[k] === 0) transparentes++;
-    }
-    const progreso = transparentes / (w * h);
-    if (progreso > 0.6) {
-      ctx.clearRect(0, 0, w, h);
-      canvas.style.pointerEvents = 'none';
-      tapaditaRevelada[i] = true;
-      if (mediaRecorder && mediaRecorder.state === 'recording') {
-        setTimeout(() => {
-          mediaRecorder.stop();
-          mediaRecorder.stream.getTracks().forEach(t => t.stop());
-        }, 2000);
+    function animarPaso() {
+      // Cálculo trigonométrico de la trayectoria en espiral
+      const x = centroX + Math.cos(angulo) * radioEspiral;
+      const y = centroY + Math.sin(angulo) * radioEspiral;
+
+      // Borrado circular simulando el dedo raspando
+      if (ctx) {
+        ctx.beginPath();
+        ctx.arc(x, y, 16, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      
+      // Ejecuta el audio en este frame de la animación
+      reproducirSonidoConGrabacion();
+
+      // Ajuste de velocidad y expansión del raspado automático
+      angulo += 0.3;
+      radioEspiral += 0.6;
+
+      // Escaneo del estado de transparencia del canvas
+      const w = canvas.width;
+      const h = canvas.height;
+      let progreso = 0;
+      
+      if (ctx) {
+        const imageData = ctx.getImageData(0, 0, w, h);
+        let transparentes = 0;
+        for (let k = 3; k < imageData.data.length; k += 4) {
+          if (imageData.data[k] === 0) transparentes++;
+        }
+        progreso = transparentes / (w * h);
+      }
+
+      // Si aún queda capa gris y la espiral no desbordó el recuadro, continúa el bucle
+      if (progreso < 0.80 && radioEspiral < Math.max(w, h) * 1.2) {
+        requestAnimationFrame(animarPaso);
+      } else {
+        // Fin del raspado: dejamos el fondo limpio y bloqueamos interacciones
+        if (ctx) ctx.clearRect(0, 0, w, h);
+        canvas.style.pointerEvents = 'none';
+        tapaditaRevelada[i] = true;
+        
+        // Esperamos 2 segundos exactos mostrando el resultado final antes de cortar el video
+        if (mediaRecorder && mediaRecorder.state === 'recording') {
+          setTimeout(() => {
+            mediaRecorder.stop();
+            mediaRecorder.stream.getTracks().forEach(t => t.stop());
+          }, 2000);
+        }
       }
     }
+
+    // Lanza el bucle de animación nativo del navegador
+    requestAnimationFrame(animarPaso);
   }
 
-  canvas.addEventListener('mousedown', () => { raspando = true; });
-  canvas.addEventListener('mouseup', () => { raspando = false; });
-  canvas.addEventListener('mouseleave', () => { raspando = false; });
-  canvas.addEventListener('mousemove', e => {
-    if (!raspando) return;
-    const rect = canvas.getBoundingClientRect();
-    raspar(e.clientX - rect.left, e.clientY - rect.top);
-  });
-
-  canvas.addEventListener('touchstart', e => { e.preventDefault(); raspando = true; }, { passive: false });
-  canvas.addEventListener('touchend', () => { raspando = false; });
-  canvas.addEventListener('touchmove', e => {
-    e.preventDefault();
-    if (!raspando) return;
-    const rect = canvas.getBoundingClientRect();
-    const touch = e.touches[0];
-    raspar(touch.clientX - rect.left, touch.clientY - rect.top);
-  }, { passive: false });
+  // Retardo estratégico de 800ms antes de raspar para capturar la transición limpia en el video
+  setTimeout(iniciarRaspadoAutomatico, 800);
 }
+
 
 
 // ===== ARRANCAR =====
