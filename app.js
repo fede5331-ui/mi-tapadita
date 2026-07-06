@@ -124,9 +124,9 @@ async function renderizarCarton() {
 
   // ----- TAPADITAS: entre el costo y la cuadrícula -----
   // Tamaño de cada cuadradito según cuántos premios haya (para que entren en pantallas chicas)
-  let anchoCanvas = 120, altoCanvas = 40;
-  if (cantPremiosTap === 2) { anchoCanvas = 120; altoCanvas = 40; }
-  if (cantPremiosTap >= 3) { anchoCanvas = 120; altoCanvas = 40; }
+  let anchoCanvas = 120, altoCanvas = 60;
+  if (cantPremiosTap === 2) { anchoCanvas = 120; altoCanvas = 60; }
+  if (cantPremiosTap >= 3) { anchoCanvas = 120; altoCanvas = 60; }
 
   const tapaditasWrap = document.createElement('div');
   tapaditasWrap.className = 'tapaditas-container' + (cantPremiosTap > 1 ? ' multi' : '');
@@ -266,6 +266,24 @@ function cerrarNuevo(e) {
   }
 }
 
+// ===== SOPORTE =====
+function abrirSoporte() {
+  cerrarMenu();
+  document.getElementById('soporte-overlay').classList.add('visible');
+}
+
+function cerrarSoporte(e) {
+  if (!e || e.target === document.getElementById('soporte-overlay')) {
+    document.getElementById('soporte-overlay').classList.remove('visible');
+  }
+}
+
+function contactarSoporte() {
+  const numero = '5493800000000'; // TODO: reemplazar por tu número de WhatsApp
+  const mensaje = encodeURIComponent('Hola! Tengo una consulta sobre Mi Tapadita 🍀');
+  window.open(`https://wa.me/${numero}?text=${mensaje}`, '_blank');
+}
+
 // ===== HISTORIAL =====
 async function abrirHistorial() {
   cerrarMenu();
@@ -348,9 +366,32 @@ function cerrarSorteo() {
 
 // ===== CAPTURA =====
 async function capturar() {
-  const elemento = document.getElementById('carton-container');
+  const elemento = document.body;
+  const header = document.querySelector('.app-header');
+
+  // Guardar posición de scroll y estilo original del header
+  const scrollPrevio = window.scrollY;
+  const posicionPrevia = header.style.position;
+  const topPrevio = header.style.top;
+
+  // Sacar el "sticky" y subir todo arriba: html2canvas no maneja bien
+  // los elementos pegajosos y produce un desfasaje visual al capturar.
+  window.scrollTo(0, 0);
+  header.style.position = 'static';
+
   try {
-    const canvas = await html2canvas(elemento, { backgroundColor: '#f0ede6', scale: 2 });
+    const canvas = await html2canvas(elemento, {
+      backgroundColor: '#f0ede6',
+      scale: 2,
+      ignoreElements: (el) => el.classList && (
+        el.classList.contains('menu-overlay') ||
+        el.classList.contains('sorteo-overlay') ||
+        el.classList.contains('confirmar-overlay') ||
+        el.classList.contains('historial-overlay') ||
+        el.classList.contains('nuevo-overlay') ||
+        el.classList.contains('soporte-overlay')
+      )
+    });
     canvas.toBlob(async blob => {
       const file = new File([blob], 'tapadita.png', { type: 'image/png' });
       if (navigator.share) {
@@ -365,6 +406,11 @@ async function capturar() {
     });
   } catch (err) {
     alert('No se pudo capturar. Intentá desde el celular.');
+  } finally {
+    // Devolver el header a su estado normal (sticky) y restaurar el scroll
+    header.style.position = posicionPrevia;
+    header.style.top = topPrevio;
+    window.scrollTo(0, scrollPrevio);
   }
 }
 

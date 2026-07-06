@@ -558,7 +558,7 @@ body {
 .celda-comprador {
   font-size: 16px;
   color: #1a56c4;
-  font-family: 'Segoe Script', 'Comic Sans MS', cursive;
+  font-family: 'Segoe Print', cursive;
   font-style: italic;
   text-align: center;
   width: 100%;
@@ -691,6 +691,64 @@ body {
 }
 
 .confirmar-btn-cancelar {
+  padding: 10px;
+  background: transparent;
+  color: #e53e3e;
+  border: none;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+/* ===== SOPORTE ===== */
+.soporte-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 400;
+  justify-content: center;
+  align-items: center;
+}
+
+.soporte-overlay.visible {
+  display: flex;
+}
+
+.soporte-card {
+  background: white;
+  border-radius: 16px;
+  padding: 28px 24px;
+  width: 300px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.soporte-titulo {
+  font-size: 18px;
+  font-weight: bold;
+  color: #333;
+}
+
+.soporte-texto {
+  font-size: 13px;
+  color: #666;
+  line-height: 1.5;
+}
+
+.soporte-btn-whatsapp {
+  padding: 14px;
+  background: #25d366;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.soporte-btn-cerrar {
   padding: 10px;
   background: transparent;
   color: #e53e3e;

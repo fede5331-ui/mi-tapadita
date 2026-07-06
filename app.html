@@ -45,6 +45,7 @@
       <button class="menu-btn menu-btn-sortear" onclick="iniciarSorteo()">Sortear</button>
       <button class="menu-btn menu-btn-nuevo" onclick="abrirNuevo()">Nuevo cartón</button>
       <button class="menu-btn menu-btn-historial" onclick="abrirHistorial()">Historial</button>
+      <button class="menu-btn menu-btn-soporte" onclick="abrirSoporte()">Soporte</button>
       <button class="menu-btn menu-btn-cerrar" onclick="cerrarSesion()">Cerrar sesión</button>
       <button class="menu-btn menu-btn-cerrar" onclick="cerrarMenu()">Cancelar</button>
     </div>
@@ -67,6 +68,16 @@
       <p class="confirmar-texto">¿Confirmás que querés raspar y descubrir los ganadores ahora?</p>
       <button class="confirmar-btn-aceptar" onclick="confirmarRevelado()">Confirmar</button>
       <button class="confirmar-btn-cancelar" onclick="cerrarConfirmar()">Cancelar</button>
+    </div>
+  </div>
+
+  <!-- SOPORTE -->
+  <div class="soporte-overlay" id="soporte-overlay" onclick="cerrarSoporte(event)">
+    <div class="soporte-card">
+      <p class="soporte-titulo">¿Necesitas Ayuda?</p>  
+      <p class="soporte-texto">Contactanos por Whatsapp por cualquier duda o inconveniente que tengas con la app.</p>
+      <button class="soporte-btn-whatsapp" onclick="contactarSoporte()">Escribir por WhatsApp</button>
+      <button class="soporte-btn-cerrar" onclick="cerrarSoporte()">Cerrar</button>
     </div>
   </div>
 
