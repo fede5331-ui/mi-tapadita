@@ -2,7 +2,8 @@ let celular = localStorage.getItem('tapadita_celular');
 let cartonActual = null;
 let modoEditar = false;
 let paginaActual = 0;
-let tapaditaRevelada = false;
+let tapaditaRevelada = []; // ahora es un array: una posición por cada premio
+let indexPendiente = null; // qué tapadita se está por raspar/confirmar
 
 if (!celular) window.location.href = 'index.html';
 
@@ -64,6 +65,7 @@ async function crearCarton(premios) {
   cartonActual = data;
   cartonActual.celdas = celdas;
   paginaActual = 0;
+  tapaditaRevelada = []; // cartón nuevo => tapaditas nuevas, sin revelar
   renderizarCarton();
 }
 
@@ -106,29 +108,43 @@ async function renderizarCarton() {
 
   const tamaño = cartonActual.tamaño;
   const paginas = tamaño / 25;
+  const cantPremiosTap = cartonActual.premios || 1;
 
+  // ----- BLOQUE DE INFO (premios + costo) -----
   const info = document.createElement('div');
   info.className = 'carton-info';
   info.innerHTML = `
-    <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-      <div style="flex:1">
-        ${generarCamposPremios()}
-        <div class="info-fila" style="margin-top:6px">
-          <span class="etiqueta">Costo:</span>
-          <input class="info-input" id="input-costo" value="${cartonActual.costo || ''}" placeholder="—" ${modoEditar ? '' : 'readonly'}>
-        </div>
-      </div>
-      <div class="tapadita-container">
-        <div class="tapadita-resultado" id="tapadita-resultado">
-          <span id="tapadita-numero">?</span>
-          <span id="tapadita-nombre"></span>
-        </div>
-        <canvas id="tapadita-canvas" width="130" height="80"></canvas>
-      </div>
+    ${generarCamposPremios()}
+    <div class="info-fila" style="margin-top:6px">
+      <span class="etiqueta">Costo:</span>
+      <input class="info-input" id="input-costo" value="${cartonActual.costo || ''}" placeholder="—" ${modoEditar ? '' : 'readonly'}>
     </div>
   `;
   container.appendChild(info);
 
+  // ----- TAPADITAS: entre el costo y la cuadrícula -----
+  // Tamaño de cada cuadradito según cuántos premios haya (para que entren en pantallas chicas)
+  let anchoCanvas = 130, altoCanvas = 80;
+  if (cantPremiosTap === 2) { anchoCanvas = 120; altoCanvas = 75; }
+  if (cantPremiosTap >= 3) { anchoCanvas = 96; altoCanvas = 68; }
+
+  const tapaditasWrap = document.createElement('div');
+  tapaditasWrap.className = 'tapaditas-container' + (cantPremiosTap > 1 ? ' multi' : '');
+  let tapaditasHtml = '';
+  for (let i = 0; i < cantPremiosTap; i++) {
+    tapaditasHtml += `
+      <div class="tapadita-container" style="width:${anchoCanvas}px; height:${altoCanvas}px;">
+        <div class="tapadita-resultado" id="tapadita-resultado-${i}">
+          <span id="tapadita-numero-${i}">?</span>
+          <span id="tapadita-nombre-${i}"></span>
+        </div>
+        <canvas id="tapadita-canvas-${i}" width="${anchoCanvas}" height="${altoCanvas}"></canvas>
+      </div>`;
+  }
+  tapaditasWrap.innerHTML = tapaditasHtml;
+  container.appendChild(tapaditasWrap);
+
+  // ----- NAV DE PAGINAS (si el cartón tiene más de 25 números) -----
   if (paginas > 1) {
     const nav = document.createElement('div');
     nav.style.cssText = 'display:flex; gap:8px; margin-bottom:10px; justify-content:center;';
@@ -142,6 +158,7 @@ async function renderizarCarton() {
     container.appendChild(nav);
   }
 
+  // ----- CUADRICULA -----
   const grilla = document.createElement('div');
   grilla.className = 'grilla';
 
@@ -195,7 +212,7 @@ async function renderizarCarton() {
     }
   }
 
-  setTimeout(iniciarTapadita, 100);
+  setTimeout(iniciarTapaditas, 100);
 }
 
 // ===== GUARDAR CELDA =====
@@ -357,16 +374,23 @@ function cerrarSesion() {
   window.location.href = 'index.html';
 }
 
-// ===== TAPADITA =====
-function iniciarTapadita() {
-  const canvas = document.getElementById('tapadita-canvas');
+// ===== TAPADITAS (una por cada premio) =====
+function iniciarTapaditas() {
+  const cantPremiosTap = cartonActual.premios || 1;
+  for (let i = 0; i < cantPremiosTap; i++) {
+    iniciarTapaditaIndex(i);
+  }
+}
+
+function iniciarTapaditaIndex(i) {
+  const canvas = document.getElementById(`tapadita-canvas-${i}`);
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
   const w = canvas.width;
   const h = canvas.height;
 
-  // Si ya fue revelada, no tapar de nuevo
-  if (tapaditaRevelada) {
+  // Si esta tapadita ya fue revelada antes, no la tapamos de nuevo
+  if (tapaditaRevelada[i]) {
     canvas.style.pointerEvents = 'none';
     return;
   }
@@ -376,8 +400,8 @@ function iniciarTapadita() {
   const pool = ocupadas.length > 0 ? ocupadas : todas;
   const ganador = pool[Math.floor(Math.random() * pool.length)];
 
-  document.getElementById('tapadita-numero').textContent = ganador.numero;
-  document.getElementById('tapadita-nombre').textContent = ganador.nombre || ganador.nombre_predefinido;
+  document.getElementById(`tapadita-numero-${i}`).textContent = ganador.numero;
+  document.getElementById(`tapadita-nombre-${i}`).textContent = ganador.nombre || ganador.nombre_predefinido;
 
   // Dibujar sticker plateado
   const grad = ctx.createLinearGradient(0, 0, w, h);
@@ -392,20 +416,18 @@ function iniciarTapadita() {
   ctx.fill();
 
   ctx.fillStyle = '#666';
-  ctx.font = 'bold 10px Arial';
+  ctx.font = w < 110 ? 'bold 8px Arial' : 'bold 10px Arial';
   ctx.textAlign = 'center';
   ctx.fillText('🍀 RASPAR', w / 2, h / 2 - 6);
   ctx.fillText('PARA REVELAR', w / 2, h / 2 + 10);
 
-  let audioCtx = null;
-
   function hacerSonido() {
     try {
-      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const audioCtx = hacerSonido._ctx || (hacerSonido._ctx = new (window.AudioContext || window.webkitAudioContext)());
       const buffer = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.04, audioCtx.sampleRate);
       const data = buffer.getChannelData(0);
-      for (let i = 0; i < data.length; i++) {
-        data[i] = (Math.random() * 2 - 1) * 0.25;
+      for (let j = 0; j < data.length; j++) {
+        data[j] = (Math.random() * 2 - 1) * 0.25;
       }
       const source = audioCtx.createBufferSource();
       source.buffer = buffer;
@@ -415,37 +437,20 @@ function iniciarTapadita() {
   }
 
   ctx.globalCompositeOperation = 'destination-out';
-  let raspando = false;
 
-  function raspar(x, y) {
-    ctx.beginPath();
-    ctx.arc(x, y, 20, 0, Math.PI * 2);
-    ctx.fill();
-    hacerSonido();
-
-    const imageData = ctx.getImageData(0, 0, w, h);
-    let transparentes = 0;
-    for (let i = 3; i < imageData.data.length; i += 4) {
-      if (imageData.data[i] === 0) transparentes++;
-    }
-    const progreso = transparentes / (w * h);
-    if (progreso > 0.6) {
-      ctx.clearRect(0, 0, w, h);
-      canvas.style.pointerEvents = 'none';
-    }
-  }
-
-  // Mostrar popup de confirmacion en vez de raspar directo
+  // Mostrar popup de confirmación en vez de raspar directo
   canvas.addEventListener('click', () => {
+    indexPendiente = i;
     document.getElementById('confirmar-overlay').classList.add('visible');
   });
 
   canvas.addEventListener('touchend', e => {
     e.preventDefault();
+    indexPendiente = i;
     document.getElementById('confirmar-overlay').classList.add('visible');
   }, { passive: false });
 
-  // Guardar referencia al contexto para usar despues
+  // Guardar referencias para usar después de confirmar
   canvas._ctx = ctx;
   canvas._hacerSonido = hacerSonido;
 }
@@ -456,6 +461,8 @@ function cerrarConfirmar() {
 
 async function confirmarTapadita() {
   cerrarConfirmar();
+  const i = indexPendiente;
+  if (i === null || i === undefined) return;
 
   let mediaRecorder = null;
   let chunks = [];
@@ -481,7 +488,7 @@ async function confirmarTapadita() {
     console.log('Grabación no disponible:', err);
   }
 
-  const canvas = document.getElementById('tapadita-canvas');
+  const canvas = document.getElementById(`tapadita-canvas-${i}`);
   const ctx = canvas._ctx;
   const hacerSonido = canvas._hacerSonido;
   let raspando = false;
@@ -496,14 +503,14 @@ async function confirmarTapadita() {
     const h = canvas.height;
     const imageData = ctx.getImageData(0, 0, w, h);
     let transparentes = 0;
-    for (let i = 3; i < imageData.data.length; i += 4) {
-      if (imageData.data[i] === 0) transparentes++;
+    for (let k = 3; k < imageData.data.length; k += 4) {
+      if (imageData.data[k] === 0) transparentes++;
     }
     const progreso = transparentes / (w * h);
     if (progreso > 0.6) {
       ctx.clearRect(0, 0, w, h);
       canvas.style.pointerEvents = 'none';
-      tapaditaRevelada = true;
+      tapaditaRevelada[i] = true;
       if (mediaRecorder && mediaRecorder.state === 'recording') {
         setTimeout(() => {
           mediaRecorder.stop();

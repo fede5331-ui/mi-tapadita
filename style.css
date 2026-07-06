@@ -575,11 +575,27 @@ body {
   border-bottom: 1px solid #a5d6a7;
 }
 
-/* ===== TAPADITA ===== */
+/* ===== TAPADITAS (contenedor entre costo y cuadrícula) ===== */
+.tapaditas-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.tapaditas-container.multi .tapadita-resultado span:first-child {
+  font-size: 20px;
+}
+
+.tapaditas-container.multi .tapadita-resultado span:last-child {
+  font-size: 9px;
+}
+
+/* ===== TAPADITA (cada cuadradito individual) ===== */
 .tapadita-container {
   position: relative;
-  width: 130px;
-  height: 80px;
   border-radius: 10px;
   overflow: hidden;
   cursor: pointer;
@@ -614,6 +630,12 @@ body {
 }
 
 #tapadita-canvas {
+  position: absolute;
+  inset: 0;
+  border-radius: 10px;
+}
+
+.tapadita-container canvas {
   position: absolute;
   inset: 0;
   border-radius: 10px;
