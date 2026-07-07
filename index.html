@@ -24,17 +24,21 @@
         <input type="tel" id="celular" placeholder="Ingrese número de celular" maxlength="20">
       </div>
 
-      <div class="campo-grupo">
-        <label>Contraseña</label>
-        <input type="password" id="password" placeholder="Ingrese contraseña" maxlength="20">
-      </div>
-
       <p class="error-msg" id="error-msg"></p>
 
       <button class="btn-primary" onclick="ingresar()">Ingresar</button>
-      <button class="btn-secondary" onclick="registrar()">Crear Cuenta</button>
     </div>
 
+  </div>
+
+  <!-- BLOQUEO POR DISPOSITIVO DISTINTO -->
+  <div class="soporte-overlay" id="bloqueo-overlay">
+    <div class="soporte-card">
+      <p class="soporte-titulo">🔒 Número ya registrado</p>
+      <p class="soporte-texto">El nro de celular ya está vinculado a otro dispositivo. Si sos vos y cambiaste de celular, contactá soporte para que te ayudemos.</p>
+      <button class="soporte-btn-whatsapp" onclick="contactarSoporteLogin()">Escribir por WhatsApp</button>
+      <button class="soporte-btn-cerrar" onclick="cerrarBloqueo()">Cerrar</button>
+    </div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -45,75 +49,79 @@
       window.location.href = 'app.html';
     }
 
+    // UUID único de este dispositivo/navegador: se genera una sola vez
+    // y se reutiliza siempre desde acá en adelante.
+    function obtenerDeviceUuid() {
+      let uuid = localStorage.getItem('tapadita_device_uuid');
+      if (!uuid) {
+        uuid = crypto.randomUUID();
+        localStorage.setItem('tapadita_device_uuid', uuid);
+      }
+      return uuid;
+    }
+
     async function ingresar() {
       const celular = document.getElementById('celular').value.trim();
-      const password = document.getElementById('password').value.trim();
       const errorMsg = document.getElementById('error-msg');
+      errorMsg.textContent = '';
 
-      if (!celular || !password) {
-        errorMsg.textContent = 'Completá todos los campos.';
+      if (!celular) {
+        errorMsg.textContent = 'Ingresá tu número de celular.';
         return;
       }
 
-      if (!/^[a-zA-Z0-9]+$/.test(password)) {
-        errorMsg.textContent = 'La contraseña solo puede tener letras y números.';
-        return;
-      }
+      const deviceUuid = obtenerDeviceUuid();
 
-      const { data, error } = await db
+      // ¿Ya existe una cuenta con este celular?
+      const { data: existente, error: errorBusqueda } = await db
         .from('usuarios')
-        .select('*')
+        .select('id, device_uuid')
         .eq('celular', celular)
-        .eq('password', password)
-        .single();
+        .maybeSingle();
 
-      if (error || !data) {
-        errorMsg.textContent = 'Celular o contraseña incorrectos.';
+      if (errorBusqueda) {
+        errorMsg.textContent = 'Error al ingresar. Intentá de nuevo.';
         return;
       }
+
+      if (!existente) {
+        // Primera vez con este celular: se crea la cuenta, vinculada a este dispositivo
+        const { error: errorCrear } = await db
+          .from('usuarios')
+          .insert({ celular, device_uuid: deviceUuid });
+
+        if (errorCrear) {
+          errorMsg.textContent = 'Error al crear la cuenta. Intentá de nuevo.';
+          return;
+        }
+
+      } else if (!existente.device_uuid) {
+        // Cuenta vieja (de antes de este cambio) sin dispositivo vinculado todavía:
+        // se lo vinculamos ahora, sin bloquear el ingreso.
+        await db
+          .from('usuarios')
+          .update({ device_uuid: deviceUuid })
+          .eq('celular', celular);
+
+      } else if (existente.device_uuid !== deviceUuid) {
+        // El celular ya está vinculado a OTRO dispositivo: bloqueamos el ingreso
+        document.getElementById('bloqueo-overlay').classList.add('visible');
+        return;
+      }
+      // Si existente.device_uuid === deviceUuid, es el mismo dispositivo de siempre: sigue normal
 
       localStorage.setItem('tapadita_celular', celular);
       window.location.href = 'app.html';
     }
 
-    async function registrar() {
-      const celular = document.getElementById('celular').value.trim();
-      const password = document.getElementById('password').value.trim();
-      const errorMsg = document.getElementById('error-msg');
+    function cerrarBloqueo() {
+      document.getElementById('bloqueo-overlay').classList.remove('visible');
+    }
 
-      if (!celular || !password) {
-        errorMsg.textContent = 'Completá todos los campos.';
-        return;
-      }
-
-      if (!/^[a-zA-Z0-9]+$/.test(password)) {
-        errorMsg.textContent = 'La contraseña solo puede tener letras y números.';
-        return;
-      }
-
-      // Verificar si ya existe
-      const { data: existente } = await db
-        .from('usuarios')
-        .select('id')
-        .eq('celular', celular)
-        .single();
-
-      if (existente) {
-        errorMsg.textContent = 'Ese número ya tiene una cuenta. Ingresá con tu contraseña.';
-        return;
-      }
-
-      const { error } = await db
-        .from('usuarios')
-        .insert({ celular, password });
-
-      if (error) {
-        errorMsg.textContent = 'Error al crear la cuenta. Intentá de nuevo.';
-        return;
-      }
-
-      localStorage.setItem('tapadita_celular', celular);
-      window.location.href = 'app.html';
+    function contactarSoporteLogin() {
+      const numero = '5493804887124'; // mismo número que en app.js
+      const mensaje = encodeURIComponent('Hola! Quiero cambiar el dispositivo vinculado a mi celular en Mi Tapadita 🍀');
+      window.open(`https://wa.me/${numero}?text=${mensaje}`, '_blank');
     }
 
     // Registrar service worker
